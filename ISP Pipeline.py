@@ -51,7 +51,7 @@ def linearizationOp(imageArray):
 
     #Formula to Black Level Correction: (raw_pixel - black_level) / (max_value - black_level)
     #All the values are normalized to interval between 0 ~ 1 to avoid magenta cast
-    imageArray = (imageArray - black_mask) / (raw.white_level - black_mask[0][0])
+    imageArray = (imageArray - black_mask) / (raw.white_level - black_mask)
 
     print("Image Black Level Correction: DONE")
 
