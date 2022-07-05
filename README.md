@@ -30,3 +30,5 @@ Even with the support of RawPy to diverse extensions of image, this work was tes
 Feel free to use it, this project is licenced under GPL v3.
 
 Best Regards
+
+P.S: Special thanks to https://www.signatureedits.com/free-raw-photos/ for provide a lot of RAW images
