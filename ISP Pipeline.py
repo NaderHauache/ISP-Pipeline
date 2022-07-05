@@ -2,6 +2,8 @@
 import rawpy
 import numpy as np
 import imageio.v2 as io
+import imquality.brisque as brisque
+from dom import DOM
 from colour_demosaicing import (
     demosaicing_CFA_Bayer_Malvar2004
 )
@@ -10,7 +12,8 @@ from colour_demosaicing import (
 path = "RAW_Images/"
 name_pic = "dog"
 ext = ".ARW"
-saveOp = True
+saveOp = False
+EvalOp = True
 bit8 = 255
 bit16 = 65535
 
@@ -39,7 +42,8 @@ def readImage(name_pic):
 
     if (saveOp):
         
-        io.imwrite("Output/"+name_pic+"_pure"+".tiff", imageArray.astype(np.uint16), format=".tiff")    
+        io.imwrite("Output/"+name_pic+"_pure"+".tiff", imageArray.astype(np.uint16), format="tiff")    
+
 
     return imageArray
 
@@ -51,13 +55,14 @@ def linearizationOp(imageArray):
 
     #Formula to Black Level Correction: (raw_pixel - black_level) / (max_value - black_level)
     #All the values are normalized to interval between 0 ~ 1 to avoid magenta cast
+    #imageArray = (imageArray - black_mask) / (raw.white_level - black_mask[0][0])
     imageArray = (imageArray - black_mask) / (raw.white_level - black_mask)
 
     print("Image Black Level Correction: DONE")
 
     if (saveOp):
         
-        io.imwrite("Output/"+name_pic+"_linearized"+".tiff", (imageArray*bit16).astype(np.uint16), format=".tiff")
+        io.imwrite("Output/"+name_pic+"_linearized"+".tiff", (imageArray*bit16).astype(np.uint16), format="tiff")
 
     
     return imageArray
@@ -83,7 +88,7 @@ def wbOp(imageArray, idx):
     print("White Balance Operation: DONE")
 
     if (saveOp):
-        io.imwrite("Output/"+name_pic+"_WB"+".tiff", (imageRaw_wb*bit16).astype(np.uint16), format=".tiff")
+        io.imwrite("Output/"+name_pic+"_WB"+".tiff", (imageRaw_wb*bit16).astype(np.uint16), format="tiff")
 
     
     return imageRaw_wb 
@@ -171,15 +176,8 @@ def gammaCorrection(imageArray):
 
 def saveImage3channel(imageArray,finalName):
 
-    print("Saving Image 3channel...\n")
+    print("Saving Image 3channel...")
     io.imwrite("Output/"+name_pic+"_"+finalName+".bmp", ((imageArray*bit8).astype(np.uint8)), format="BMP")
-    
-    return True
-
-def saveImageMono(imageArray,finalName):
-
-    print("Saving Image Monochannel...\n")
-    io.imwrite("Output/"+name_pic+"_"+finalName+".tiff", (imageArray*bit16).astype(np.uint16), format=".tiff")
     
     return True
 
@@ -195,7 +193,19 @@ imageArray = colorSpaceConversion(imageArray)
 imageArray = gammaCorrection(imageArray)
 
 if(saveImage3channel(imageArray,"sRGB")):
-    print("ISP Pipeline Process: COMPLETED!")
+    print("\nISP Pipeline Process: COMPLETED!\n")
 
+if(EvalOp):
+    print("Evaluating IQ Metrics.. (usually takes about a minute... Just wait a little bit...)\n")
 
+    #Explained on: https://github.com/ocampor/image-quality/blob/master/imquality/brisque.py
+    brisqueScore = brisque.score(imageArray)
+    print("Brisque Score: " + str(brisqueScore))
+    print("[Value Range: 0 ~ 100]\n")
+
+    #Explained on: https://github.com/umang-singhal/pydom 
+    iqs = DOM()
+    sharp = iqs.get_sharpness("Output/"+name_pic+"_sRGB"+".bmp")
+    print("Sharpness Estimation Score: " + str(sharp))
+    print("[Value Range: 0 ~ sqrt(2)]\n")
 
