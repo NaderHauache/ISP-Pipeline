@@ -198,7 +198,7 @@ if(saveImage3channel(imageArray,"sRGB")):
 if(EvalOp):
     print("Evaluating IQ Metrics.. (usually takes about a minute... Just wait a little bit...)\n")
 
-    #Explained on: https://github.com/ocampor/image-quality/blob/master/imquality/brisque.py
+    #Explained on: https://github.com/ocampor/image-quality
     brisqueScore = brisque.score(imageArray)
     print("Brisque Score: " + str(brisqueScore))
     print("[Value Range: 0 ~ 100]\n")
