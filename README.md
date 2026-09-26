@@ -1,34 +1,123 @@
 # ISP-Pipeline
-An Open Source ISP Pipeline which converts RAW images into sRGB Images wrote in Python. 
 
-This work was done with the purpose of provide a simple, open source and efficient ISP Pipeline into the educational context of Digital Image Process. This first release of software was conceived from my undergraduate thesys at Federal University of Amazonas to acquire the Computer Engineer Bachelors Degree. 
+A minimal, educational **Image Signal Processing (ISP) pipeline** written in Python that converts **RAW camera images into sRGB images** and evaluates the result with **no-reference image quality metrics** (BRISQUE and ΔDoM).
 
-Basically, this script works aims to provide, in the first version, a basic ISP Pipeline with the main modules to provide an sRGB image into .bmp format, it means, there is a lot of futher improvements to reach a high performance software with final high end quality. 
+This project was developed as part of my undergraduate thesis in Computer Engineering at the Federal University of Amazonas (UFAM, 2022):
 
-On this version 1.0-alpha, i did the implementation 8 moduludes of DIP:
+> **Avaliação da Qualidade de Imagens Processadas em Pipelines de Processamento de Sinais por Métodos Cegos**
+> *(Quality Assessment of Processed Images in Signal Processing Pipelines by Blind Methods)*
+> Full text: http://riu.ufam.edu.br/handle/prefix/6383
 
-1. Loader Module(Read and Load Image to a numpy array)
-3. BLC module (to perform the correction of Black Levels of the image with a linearization process)
-4. White Balance Adjstument Module (to correct the White Levels of the image)
-5. Channel Discrimination Module (to provide an .bmp representation of each channel that composes the image into Bayer Filter Format, aka CFA image)
-6. Demosaicing Module (using a Malvar2004 method implemented by colour demosaic library)
-7. XYZ to sRGB Module(to provide a Color Space Conversion)
-8. Gamma Correction Module(to correct the colors of the image)
+---
 
-As futher works to be done, an own implementation of a Demosaicing process is intersting, such as Lens Shade Correction Process, Noise Reduction Treatment, 4-channel Bayer Filters support(Usually using diffent tons of green into a 2x2 array), Sharpening Process, Contrast and Brightness Adjustment, Auto White Balance Algorithm(instead use of values provided by camera trough metadata), support to anothers CFA arrays and monochromatic sensors could be instersting too...
+## Pipeline overview
 
-The Python language was choosen due the easily write philosophy, but unfornately, this language has serious problems in the matter of performance. In the future, as a continued project, Rust Language is a nice candidate to refactoring this script. 
+```
+RAW (.ARW) ─► Black Level Correction ─► White Balance ─► Demosaicing ─► Color Space ─► Gamma ─► sRGB (.bmp)
+              + Linearization          (camera gains)   (Malvar 2004)  Conversion     Correction
+                                                                        (Camera → XYZ → sRGB)
+                                                                              │
+                                                                              ▼
+                                                              IQ evaluation: BRISQUE + ΔDoM
+```
 
-On this version, it was used the following libs:
-1. RawPy 
-2. NumPy
-3. ImageIOv2
-4. colour_demosaicing
+| # | Stage | What it does |
+|---|-------|--------------|
+| 1 | **Loader** | Reads the RAW file with `rawpy` and loads the Bayer (CFA) data into a NumPy array, together with the camera metadata (CFA pattern, black/white levels, white balance gains, color matrix). |
+| 2 | **Black Level Correction & Linearization** | Subtracts the per-channel black level and normalizes the signal to the [0, 1] range using the sensor white level. |
+| 3 | **White Balance** | Applies the white balance gains stored in the camera metadata, normalized to the green channel. |
+| 4 | **CFA visualization** *(optional)* | Saves a color-coded image of the Bayer mosaic, showing which pixel belongs to each color channel. |
+| 5 | **Demosaicing** | Reconstructs the full RGB image using the Malvar (2004) method from the `colour-demosaicing` library. |
+| 6 | **Color Space Conversion** | Converts camera RGB to sRGB through the XYZ color space, using the camera's color matrix from the metadata. |
+| 7 | **Gamma Correction** | Applies the standard sRGB transfer function. |
 
-Even with the support of RawPy to diverse extensions of image, this work was tested only with .ARW files provided by Sony Cameras. So, the work with another extensions was not guaranteed. Despite that, you will need to adapt this code to your necessities. 
+After processing, the script can evaluate the final image with two **no-reference (blind)** metrics:
 
-Feel free to use it, this project is licenced under GPL v3.
+- **BRISQUE** (*Blind/Referenceless Image Spatial Quality Evaluator*), via the [`image-quality`](https://github.com/ocampor/image-quality) library. Score range 0–100; lower usually means better perceived quality.
+- **ΔDoM** (*Difference of Differences in a Median-filtered image*), a sharpness estimator, via [`pydom`](https://github.com/umang-singhal/pydom). Score range 0–√2; higher means sharper.
 
-Best Regards
+## Results
 
-P.S: Special thanks to https://www.signatureedits.com/free-raw-photos/ for provide a lot of RAW images
+Scores obtained for the 8 sample images used in the thesis (from [`iq_assesment.csv`](iq_assesment.csv)):
+
+| Image | BRISQUE | ΔDoM (sharpness) |
+|-------|--------:|-----------------:|
+| dog | 33.16 | 0.806 |
+| corvette | 42.45 | 0.713 |
+| dj | 26.16 | 1.092 |
+| mercedes | 29.41 | 0.926 |
+| motorcycle | 30.67 | 0.947 |
+| sea-beach | 27.16 | 1.003 |
+| river | 23.89 | 0.992 |
+| lake | 43.51 | 0.958 |
+
+In the thesis, the analysis of the pipeline stages showed that **linearization** and **white balance** had the greatest impact on the final quality indices. Based on that, complementary processing stages were proposed to improve images acquired by smartphones. See the full text for the complete methodology and discussion.
+
+## Requirements
+
+- Python 3
+- [`rawpy`](https://github.com/letmaik/rawpy)
+- [`numpy`](https://numpy.org/)
+- [`imageio`](https://imageio.readthedocs.io/)
+- [`colour-demosaicing`](https://github.com/colour-science/colour-demosaicing)
+- [`image-quality`](https://github.com/ocampor/image-quality) *(BRISQUE; only needed for evaluation)*
+- [`pydom`](https://github.com/umang-singhal/pydom) *(ΔDoM; only needed for evaluation; see its repository for installation)*
+
+## Usage
+
+1. Place your RAW file inside `RAW_Images/`.
+2. Create an `Output/` folder in the project root (processed images are saved there).
+3. Edit the configuration variables at the top of `ISP Pipeline.py`:
+
+   ```python
+   path = "RAW_Images/"   # input folder
+   name_pic = "dog"       # file name without extension
+   ext = ".ARW"           # RAW extension
+   saveOp = False         # True = also save every intermediate stage (TIFF/BMP)
+   EvalOp = True          # True = compute BRISQUE and ΔDoM on the final image
+   ```
+
+4. Run:
+
+   ```bash
+   python "ISP Pipeline.py"
+   ```
+
+The final image is saved as `Output/<name>_sRGB.bmp`, and the metric scores are printed to the terminal.
+
+> **Note:** although `rawpy` supports many RAW formats, this pipeline was tested only with Sony `.ARW` files. Other formats and CFA layouts may require adjustments.
+
+## Limitations and future work
+
+This is an educational, first version (1.0-alpha). Possible next steps:
+
+- Own implementation of demosaicing (instead of a library)
+- Lens Shading Correction
+- Noise reduction
+- Sharpening
+- Contrast and brightness adjustment
+- Auto White Balance algorithm (instead of the metadata gains)
+- Support for other CFA layouts (e.g., Quad Bayer) and monochrome sensors
+- Performance improvements (e.g., a port to a compiled language such as Rust)
+
+## Citation
+
+If this work is useful to you, please cite the thesis:
+
+```bibtex
+@misc{hauache2022isp,
+  author       = {Hauache, Nader Moraes},
+  title        = {Avaliação da Qualidade de Imagens Processadas em Pipelines de Processamento de Sinais por Métodos Cegos},
+  howpublished = {Trabalho de Conclusão de Curso (Engenharia da Computação), Universidade Federal do Amazonas},
+  year         = {2022},
+  url          = {http://riu.ufam.edu.br/handle/prefix/6383}
+}
+```
+
+## Acknowledgments
+
+Sample RAW images provided by [Signature Edits – Free RAW Photos](https://www.signatureedits.com/free-raw-photos/).
+
+## License
+
+Licensed under the [GNU General Public License v3.0](LICENSE).
